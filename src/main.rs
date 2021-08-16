@@ -1,87 +1,39 @@
-fn main() {
-    println!("Hello, world!");
-}
-use std::error::Error;
-use std::path::PathBuf;
-use std::result::Result;
-use tensorflow::Code;
-use tensorflow::Graph;
-use tensorflow::SavedModelBundle;
-use tensorflow::SessionOptions;
-use tensorflow::SessionRunArgs;
-use tensorflow::Status;
-use tensorflow::Tensor;
-use tensorflow::DEFAULT_SERVING_SIGNATURE_DEF_KEY;
+use tract_onnx::prelude::*;
 
-use image::io::Reader as ImageReader;
-use image::GenericImageView;
+fn main() -> TractResult<()> {
+    let model = tract_onnx::onnx()
+        // load the model
+        .model_for_path("./test.onnx")?
+        // specify input type and shape
+        .with_input_fact(
+            0,
+            InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 224, 224, 3)),
+        )?
+        // optimize the model
+        // .into_optimized()?
+        // make the model runnable and fix its inputs and outputs
+        .into_runnable()?;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let export_dir = "examples/mobilenetv3";
-    let model_file: PathBuf = [export_dir, "saved_model.pb"].iter().collect();
-    if !model_file.exists() {
-        return Err(Box::new(
-            Status::new_set(
-                Code::NotFound,
-                &format!(
-                    "Run 'python examples/mobilenetv3/create_model.py' to generate \
-                     {} and try again.",
-                    model_file.display()
-                ),
-            )
-            .unwrap(),
-        ));
-    }
+    println!("loaded model");
+    // open image, resize it and make a Tensor out of it
+    let image = image::open("./sample.png").unwrap().to_rgb8();
+    let resized =
+        image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
+    let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 224, 224, 3), |(_, x, y, c)| {
+        resized[(x as _, y as _)][c] as f32 
+    })
+    .into();
 
-    // Create input variables for our addition
-    let mut x = Tensor::new(&[1, 224, 224, 3]);
-    let img = ImageReader::open("examples/mobilenetv3/sample.png")?.decode()?;
-    for (i, (_, _, pixel)) in img.pixels().enumerate() {
-        x[3 * i] = pixel.0[0] as f32;
-        x[3 * i + 1] = pixel.0[1] as f32;
-        x[3 * i + 2] = pixel.0[2] as f32;
-    }
+    // run the model on the input
+    let result = model.run(tvec!(image))?;
 
-    // Load the saved model exported by zenn_savedmodel.py.
-    let mut graph = Graph::new();
-    let bundle =
-        SavedModelBundle::load(&SessionOptions::new(), &["serve"], &mut graph, export_dir)?;
-    let session = &bundle.session;
-
-    // get in/out operations
-    let signature = bundle
-        .meta_graph_def()
-        .get_signature(DEFAULT_SERVING_SIGNATURE_DEF_KEY)?;
-    let x_info = signature.get_input("input_1")?;
-    let op_x = &graph.operation_by_name_required(&x_info.name().name)?;
-    let output_info = signature.get_output("Predictions")?;
-    let op_output = &graph.operation_by_name_required(&output_info.name().name)?;
-
-    // Run the graph.
-    let mut args = SessionRunArgs::new();
-    args.add_feed(op_x, 0, &x);
-    let token_output = args.request_fetch(op_output, 0);
-    session.run(&mut args)?;
-
-    // Check the output.
-    let output: Tensor<f32> = args.fetch(token_output)?;
-
-    // Calculate argmax of the output
-    let (max_idx, _max_val) =
-        output
-            .iter()
-            .enumerate()
-            .fold((0, output[0]), |(idx_max, val_max), (idx, val)| {
-                if &val_max > val {
-                    (idx_max, val_max)
-                } else {
-                    (idx, *val)
-                }
-            });
-
-    // This index is expected to be identical with that of the Python code,
-    // but this is not guaranteed due to floating operations.
-    println!("argmax={}", max_idx);
-
+    // find and display the max value with its index
+    let best = result[0]
+        .to_array_view::<f32>()?
+        .iter()
+        .cloned()
+        .zip(2..)
+        .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    println!("result: {:?}", best);
     Ok(())
 }
