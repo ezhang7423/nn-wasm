@@ -1,6 +1,15 @@
 use tract_onnx::prelude::*;
+use wasm_bindgen::prelude::*;
 
-fn main() -> TractResult<()> {
+#[wasm_bindgen]
+pub fn get_res() -> i32 {
+    match init_and_run_model() {
+        Ok(v) => v.unwrap().1,
+        Err(e) => panic!("{:?}", e),
+    }
+}
+
+fn init_and_run_model() -> TractResult<Option<(f32, i32)>> {
     let model = tract_onnx::onnx()
         // load the model
         .model_for_path("./test.onnx")?
@@ -20,7 +29,7 @@ fn main() -> TractResult<()> {
     // let resized =
     //     image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
     let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 224, 224, 3), |(_, x, y, c)| {
-        image[(x as _, y as _)][c] as f32 
+        image[(x as _, y as _)][c] as f32
     })
     .into();
 
@@ -35,6 +44,6 @@ fn main() -> TractResult<()> {
         .cloned()
         .zip(2..)
         .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    println!("result: {:?}", best);
-    Ok(())
+
+    Ok(best)
 }
