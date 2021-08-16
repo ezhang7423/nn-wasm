@@ -10,17 +10,17 @@ fn main() -> TractResult<()> {
             InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 224, 224, 3)),
         )?
         // optimize the model
-        // .into_optimized()?
+        .into_optimized()?
         // make the model runnable and fix its inputs and outputs
         .into_runnable()?;
 
     println!("loaded model");
     // open image, resize it and make a Tensor out of it
     let image = image::open("./sample.png").unwrap().to_rgb8();
-    let resized =
-        image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
+    // let resized =
+    //     image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
     let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 224, 224, 3), |(_, x, y, c)| {
-        resized[(x as _, y as _)][c] as f32 
+        image[(x as _, y as _)][c] as f32 
     })
     .into();
 
@@ -28,6 +28,7 @@ fn main() -> TractResult<()> {
     let result = model.run(tvec!(image))?;
 
     // find and display the max value with its index
+    // println!("{:?}", result[1]);
     let best = result[0]
         .to_array_view::<f32>()?
         .iter()

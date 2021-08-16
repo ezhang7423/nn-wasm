@@ -6,24 +6,24 @@ model = tf.keras.applications.MobileNetV3Small(
 )
 
 # save the model
-directory = "."
-model.save(directory, save_format="tf")
+# directory = "."
+# model.save(directory, save_format="tf")
 
-######################################################
-# Check the prediction results for the sample image. #
-######################################################
-# load sample image
+# ######################################################
+# # Check the prediction results for the sample image. #
+# ######################################################
+# # load sample image
 fname = "./macaque.jpg"
 buf = tf.io.read_file(fname)
 img = tf.image.decode_jpeg(buf)
 
-# clip to the square and resize to (224, 224)
+# # clip to the square and resize to (224, 224)
 small = tf.image.resize(img[:, 100:-100], (224, 224), antialias=True)
 
-# dump the content to use from Rust later
-small = tf.cast(small, tf.uint8)
-buf = tf.image.encode_png(small)
-tf.io.write_file(directory + "/sample.png", buf)
+# # dump the content to use from Rust later
+# small = tf.cast(small, tf.uint8)
+# buf = tf.image.encode_png(small)
+# tf.io.write_file(directory + "/sample.png", buf)
 
 # check model prediction
 predict = model(small[tf.newaxis, :, :, :])
@@ -31,7 +31,7 @@ predict = predict.numpy()
 decoded = tf.keras.applications.imagenet_utils.decode_predictions(predict, top=1)[0]
 
 print(f"""
-argmax={predict.argmax(axis=1)[0]}
+argmax={predict.argmax(axis=1)}
 """)
 print("class_name | class_description | score")
 print("-----------+-------------------+------")
