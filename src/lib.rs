@@ -1,18 +1,40 @@
+use image::io::Reader as ImageReader;
+use std::io::Cursor;
 use tract_onnx::prelude::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn get_res() -> i32 {
-    match init_and_run_model() {
+pub async fn get_res() -> i32 {
+    match init_and_run_model().await {
         Ok(v) => v.unwrap().1,
         Err(e) => panic!("{:?}", e),
     }
 }
 
-fn init_and_run_model() -> TractResult<Option<(f32, i32)>> {
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+async fn init_and_run_model() -> TractResult<Option<(f32, i32)>> {
+    console_error_panic_hook::set_once();
+    println!("sad boi af");
+
+    // let mut data = Vec::new();
+    let body = reqwest::get("http://localhost:5500/static/test.onnx")
+        .await?
+        .bytes()
+        .await?;
+    println!("sad bfe af");
+    // let mut reader = res.into_reader();
+    // let data = [].to_vec();
+    let mut reader = Cursor::new(body);
     let model = tract_onnx::onnx()
         // load the model
-        .model_for_path("./test.onnx")?
+        .model_for_read(&mut reader)?
         // specify input type and shape
         .with_input_fact(
             0,
@@ -24,8 +46,17 @@ fn init_and_run_model() -> TractResult<Option<(f32, i32)>> {
         .into_runnable()?;
 
     println!("loaded model");
-    // open image, resize it and make a Tensor out of it
-    let image = image::open("./sample.png").unwrap().to_rgb8();
+    unsafe {
+        log("loaded the  model");
+    }
+    // open image, resize it and make a Tensor out of itW
+    let img_bytes = reqwest::get("http://localhost:5500/static/sample.png")
+        .await?
+        .bytes()
+        .await?;
+    let image = ImageReader::with_format(Cursor::new(img_bytes), image::ImageFormat::Png)
+        .decode()?
+        .to_rgb8();
     // let resized =
     //     image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
     let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 224, 224, 3), |(_, x, y, c)| {

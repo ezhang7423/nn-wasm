@@ -1,4 +1,8 @@
+node_modules
+/dist
 /target
+/pkg
+/wasm-pack.log
 *.pb
 *.onnx
 sample.png
