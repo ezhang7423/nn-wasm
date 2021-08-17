@@ -78,3 +78,33 @@ async fn init_and_run_model() -> TractResult<Option<(f32, i32)>> {
 
     Ok(best)
 }
+
+#[wasm_bindgen]
+pub struct bruh {
+    pub but_nuh: i32,
+    yuh: Tensor,
+}
+
+#[wasm_bindgen]
+impl bruh {
+    pub fn new() -> Self {
+        let tensor = match Tensor::zero::<i32>(&[1, 224, 224, 3]) {
+            Ok(v) => v,
+            Err(e) => panic!("{:?}", e),
+        };
+        bruh {
+            but_nuh: 0,
+            yuh: tensor,
+        }
+    }
+    pub fn excite(&self) {
+        unsafe {
+            log(&format!("{:?}", self.yuh));
+        }
+    }
+}
+impl bruh {
+    fn prive() {
+        unsafe { log("hha") }
+    }
+}
