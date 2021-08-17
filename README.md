@@ -1,5 +1,8 @@
 Converts Tensorflow to ONNX, and then runnable WASM.
 
+
+Summary: works, but is too slow to be practical. Running a single prediction takes around 8 seconds on a i5-8250u.
+
 ```bash
 poetry shell
 poetry install
